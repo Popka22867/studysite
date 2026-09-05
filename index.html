@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySpace</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="welcomeScreen" class="screen active">
+        <div class="welcome-container">
+            <div class="welcome-content">
+                <h1>Привет!</h1>
+                <p>Как тебя зовут?</p>
+                <input type="text" id="userName" placeholder="Введите имя">
+                <button class="btn" id="welcomeBtn">Продолжить</button>
+                <div id="welcomeError" style="color: red; margin-top: 10px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainApp" class="screen">
+        <nav class="sidebar">
+            <h2>StudySpace</h2>
+            <button class="nav-btn active" data-page="home">Главная</button>
+            <button class="nav-btn" data-page="books">Книги</button>
+            <button class="nav-btn" data-page="solver">Решить</button>
+            <button class="nav-btn" data-page="prompts">Промты</button>
+            <button class="nav-btn" data-page="schedule">Расписание</button>
+            <button class="nav-btn" data-page="settings">Настройки</button>
+        </nav>
+
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-page="home">Главная</button>
+            <button class="nav-btn" data-page="books">Книги</button>
+            <button class="nav-btn" data-page="solver">Решить</button>
+            <button class="nav-btn" data-page="prompts">Промты</button>
+            <button class="nav-btn" data-page="schedule">Расписание</button>
+            <button class="nav-btn" data-page="settings">Настройки</button>
+        </nav>
+
+        <main class="main-content">
+            <div class="page active" id="page-home">
+                <h1 id="greeting">Добро пожаловать!</h1>
+                <p>Готовы к новым знаниям?</p>
+                <div class="cards-grid">
+                    <button class="card" data-page="books">
+                        <h3>Книги</h3>
+                        <p>Читайте учебники</p>
+                    </button>
+                    <button class="card" data-page="solver">
+                        <h3>Решить</h3>
+                        <p>Помощь с заданиями</p>
+                    </button>
+                    <button class="card" data-page="prompts">
+                        <h3>Промты</h3>
+                        <p>Сохраняйте инструкции</p>
+                    </button>
+                    <button class="card" data-page="schedule">
+                        <h3>Расписание</h3>
+                        <p>Ваши уроки</p>
+                    </button>
+                    <button class="card" data-page="settings">
+                        <h3>Настройки</h3>
+                        <p>Настройте приложение</p>
+                    </button>
+                </div>
+            </div>
+
+            <div class="page" id="page-books">
+                <h1>Мои книги</h1>
+                <button class="btn" id="addBookBtn">Добавить книгу</button>
+                <input type="file" id="bookFileInput" multiple style="display: none;">
+                <div id="booksList"></div>
+            </div>
+
+            <div class="page" id="page-solver">
+                <h1>Решение задания</h1>
+                <textarea id="taskInput" placeholder="Введите задание..."></textarea>
+                <p>Выберите предмет:</p>
+                <div class="subjects">
+                    <button class="subject-btn" data-subject="Математика">Математика</button>
+                    <button class="subject-btn" data-subject="Русский язык">Русский язык</button>
+                    <button class="subject-btn" data-subject="Английский язык">Английский язык</button>
+                    <button class="subject-btn" data-subject="Физика">Физика</button>
+                    <button class="subject-btn" data-subject="Химия">Химия</button>
+                    <button class="subject-btn" data-subject="История">История</button>
+                </div>
+                <p>Нужно объяснение?</p>
+                <button class="btn" id="needExplanationYes">Да</button>
+                <button class="btn" id="needExplanationNo">Нет</button>
+                <button class="btn" id="solveBtn">Найти решение</button>
+                <button class="btn" id="aiSolveBtn">Решить через ИИ</button>
+                <div id="solutionResult"></div>
+                <div id="aiResult"></div>
+            </div>
+
+            <div class="page" id="page-prompts">
+                <h1>Мои промты</h1>
+                <button class="btn" id="addPromptBtn">Добавить промт</button>
+                <div id="promptsList"></div>
+            </div>
+
+            <div class="page" id="page-schedule">
+                <h1>Расписание</h1>
+                <button class="btn" id="uploadScheduleBtn">Загрузить расписание</button>
+                <input type="file" id="scheduleFileInput" multiple style="display: none;">
+                <button class="btn" id="clearScheduleBtn">Очистить</button>
+                <div class="tabs">
+                    <button class="tab-btn active" data-day="monday">Пн</button>
+                    <button class="tab-btn" data-day="tuesday">Вт</button>
+                    <button class="tab-btn" data-day="wednesday">Ср</button>
+                    <button class="tab-btn" data-day="thursday">Чт</button>
+                    <button class="tab-btn" data-day="friday">Пт</button>
+                </div>
+                <div id="scheduleContent"></div>
+            </div>
+
+            <div class="page" id="page-settings">
+                <h1>Настройки</h1>
+                <h3>Профиль</h3>
+                <input type="text" id="settingsName" placeholder="Ваше имя">
+                <button class="btn" id="saveNameBtn">Сохранить</button>
+                <h3>Тема</h3>
+                <button class="btn theme-btn" data-theme="light">Светлая</button>
+                <button class="btn theme-btn" data-theme="dark">Тёмная</button>
+                <h3>Цвета</h3>
+                <button class="btn color-btn" data-color="default">Фиолетовый</button>
+                <button class="btn color-btn" data-color="red">Красный</button>
+                <button class="btn color-btn" data-color="blue">Синий</button>
+                <button class="btn color-btn" data-color="green">Зелёный</button>
+                <button class="btn color-btn" data-color="orange">Оранжевый</button>
+                <button class="btn color-btn" data-color="rgb">RGB</button>
+                <h3>API ключи</h3>
+                <p>ChatGPT API ключ:</p>
+                <input type="password" id="chatgptApiKey" placeholder="sk-...">
+                <button class="btn" onclick="window.open('https://platform.openai.com/api-keys', '_blank')">Получить API ключ</button>
+                <p>Grok API ключ:</p>
+                <input type="password" id="grokApiKey" placeholder="xai-...">
+                <button class="btn" onclick="window.open('https://console.x.ai', '_blank')">Получить API ключ</button>
+                <button class="btn" id="saveApiKeysBtn">Сохранить ключи</button>
+                <p style="color: #999; font-size: 12px; margin-top: 10px;">Ключи хранятся только в вашем браузере</p>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalOverlay">
+        <div class="modal">
+            <h2 id="modalTitle">Добавить промт</h2>
+            <input type="text" id="promptName" placeholder="Название">
+            <textarea id="promptText" placeholder="Текст промта"></textarea>
+            <select id="promptAI">
+                <option>ChatGPT</option>
+                <option>Gemini</option>
+                <option>Grok</option>
+                <option>DeepSeek</option>
+            </select>
+            <button class="btn" id="cancelModalBtn">Отмена</button>
+            <button class="btn" id="saveModalBtn">Сохранить</button>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
