@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GOAT 1488</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Экран входа */
+        .terminal-screen {
+            position: fixed;
+            inset: 0;
+            background: #000000;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: opacity 0.8s ease, visibility 0.8s;
+            padding: 20px;
+        }
+
+        .terminal-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .terminal-box {
+            background: rgba(15, 15, 18, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 420px;
+            max-height: 90vh;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+            text-align: center;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+        }
+
+        .terminal-header {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+            width: 100%;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .red { background: #ff5f56; }
+        .yellow { background: #ffbd2e; }
+        .green { background: #27c93f; }
+
+        .ascii-art-box {
+            font-family: monospace;
+            white-space: pre;
+            font-size: 4px;
+            line-height: 1;
+            color: #ffffff;
+            margin: 5px auto;
+            text-align: left;
+            width: max-content;
+            max-width: 100%;
+            overflow: hidden;
+            letter-spacing: 0px;
+        }
+
+        .term-info {
+            font-size: 13px;
+            color: #aaa;
+            line-height: 1.7;
+            text-align: left;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+            font-family: monospace;
+            margin-top: 10px;
+            width: 100%;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .term-info.visible {
+            opacity: 1;
+        }
+
+        .term-info span {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .prompt-click {
+            margin-top: 16px;
+            font-size: 12px;
+            color: #888;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Главная карточка */
+        .main-card {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 390px;
+            background: rgba(12, 12, 16, 0.75);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 28px;
+            padding: 24px 20px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+            margin: 20px;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .main-card.active {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            gap: 12px;
+        }
+
+        .ticker-wrap {
+            flex: 1;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .ticker {
+            display: inline-block;
+            white-space: nowrap;
+            padding-left: 100%;
+            font-size: 12px;
+            color: #ddd;
+            font-weight: 500;
+        }
+
+        @keyframes marqueeCustom {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(-35%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        .lang-switcher {
+            display: flex;
+            gap: 2px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 3px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            flex-shrink: 0;
+        }
+
+        .lang-btn {
+            background: transparent;
+            border: none;
+            color: #666;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lang-btn.active {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            letter-spacing: 0.5px;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .links-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .link-btn {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 12px 16px;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .link-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .icon-box {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .icon-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .icon-box svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        .tg-bg { background: rgba(36, 161, 222, 0.15); color: #24A1DE; border: 1px solid rgba(36, 161, 222, 0.3); }
+        .tt-bg { background: rgba(255, 0, 80, 0.15); color: #ff0050; border: 1px solid rgba(255, 0, 80, 0.3); }
+        .da-bg { border: 1px solid rgba(255, 115, 0, 0.4); }
+        .bs-bg { border: 1px solid rgba(255, 204, 0, 0.4); }
+        .so-bg { border: 1px solid rgba(255, 102, 0, 0.4); }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <!-- Экран входа -->
+    <div class="terminal-screen" id="termScreen" onclick="startApp()">
+        <div class="terminal-box">
+            <div class="terminal-header">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
+            </div>
+            
+            <div class="ascii-art-box" id="artBox"></div>
+
+            <div class="term-info" id="termInfo">
+                IP: <span id="user-ip">Определяем...</span><br>
+                Устройство: <span id="user-device">Определяем...</span><br>
+                Статус: <span>Готов к использованию 🚸</span>
+            </div>
+            
+            <div class="prompt-click">Press Enter / Click To Continue</div>
+        </div>
+    </div>
+
+    <!-- Главная карточка -->
+    <div class="main-card" id="mainCard">
+        <div class="card-top">
+            <div class="ticker-wrap">
+                <div class="ticker" id="tickerText">
+                    🚸 Тушил сигу в казаках от Martine Rose... Как Алла Пугачёва — миллионы алых роз. Ты видишь во мне гной — он просто так в меня пророс. Ты влюбишься в ублюдка, так оставь на мне засос. Ты тушишь, ты тушишь в казаках от Martine Rose. Ты ищешь во мне смысл, я не знаю, где нашёл. Ты ищешь меня в график 5-2, будто бы ебашил шёлк. Ты забираешь меня там же, где загаженный район. Ты меня портишь, как строчка, которую пел Артём 🚸
+                </div>
+            </div>
+            <div class="lang-switcher">
+                <button class="lang-btn active" id="btn-uk" onclick="setLang('uk')">UA</button>
+                <button class="lang-btn" id="btn-ru" onclick="setLang('ru')">RU</button>
+                <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+            </div>
+        </div>
+
+        <div class="title" id="cardTitle">GOAT 1488</div>
+
+        <div class="links-container">
+            <!-- Telegram -->
+            <a href="https://t.me/feedbackls_bot" target="_blank" class="link-btn">
+                <div class="icon-box tg-bg">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.25.38-.51 1.07-.78 4.2-1.82 7-3.03 8.4-3.61 4-.16 4.83.5 4.77 1.48z"/></svg>
+                </div>
+                <span id="label-bot">Бот обратной связи</span>
+            </a>
+
+            <!-- TikTok -->
+            <a href="https://www.tiktok.com/@goat148852" target="_blank" class="link-btn">
+                <div class="icon-box tt-bg">
+                    <svg viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.29 0 .56.04.83.12V9.37a6.26 6.26 0 0 0-1-.08 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V9.05a8.28 8.28 0 0 0 4.96 1.63V7.22a4.82 4.82 0 0 1-1-.53z"/></svg>
+                </div>
+                <span id="label-tt">TikTok (@goat148852)</span>
+            </a>
+
+            <!-- DonationAlerts (da.jpeg) -->
+            <a href="https://www.donationalerts.com/r/bur_mal_da" target="_blank" class="link-btn">
+                <div class="icon-box da-bg">
+                    <img src="da.jpeg" alt="DonationAlerts" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1051/1051377.png'">
+                </div>
+                <span id="label-da">DonationAlerts</span>
+            </a>
+
+            <!-- Brawl Stars (bs.jpeg) -->
+            <a href="https://link.brawlstars.com/invite/friend/ru?tag=2UV0RYPYUU&token=f1MOZZZez" target="_blank" class="link-btn">
+                <div class="icon-box bs-bg">
+                    <img src="bs.jpeg" alt="Brawl Stars" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1051/1051377.png'">
+                </div>
+                <span id="label-bs">Brawl Stars (Друзья)</span>
+            </a>
+
+            <!-- Standoff 2 (so.jpg) -->
+            <a href="https://link.standoff2.com/252961277" target="_blank" class="link-btn">
+                <div class="icon-box so-bg">
+                    <img src="so.jpg" alt="Standoff 2" onerror="this.src='https://cdn-icons-png.flaticon.com/512/808/808439.png'">
+                </div>
+                <span id="label-so">Standoff 2</span>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const artRaw = `⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠞⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠
+⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⡶⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⣴⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⢀⣾⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⡸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⡇⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⢹⣳⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸
+⠀⠀⠀⠀⠀⠀⠑⠯⣗⣒⡶⠶⠒⠒⠲⢶⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡤⡞⡟⠃⠀⠘⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡏⣼⢁⡷⣄⠀⠀⢸⡇⠀⠀⠀⠀⢀⡤⠖⣒⠖⣒⡭⣿⣷⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⡾⡇⠀⢟⠀⠈⠙⢦⡈⡇⠀⠀⢀⡴⠉⣠⠞⢥⡾⣫⣿⠿⠋⠉⢻⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⢸⣇⢷⠀⠘⡄⠀⠀⠀⠙⢿⡀⠀⣾⠂⡰⢁⡾⡷⢁⢿⡃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⣟⡄⢣⡀⠹⡄⠀⠀⠀⠀⠙⣴⡇⢰⠃⣾⠳⠁⡸⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⡄⠀⠱⡄⠘⡄⢰⣦⡀⠀⠘⡇⢸⢰⡏⠃⢠⠃⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⣄⢰⣾⣦⠈⢆⢻⣡⢸⣆⢹⢸⢸⡇⠀⡌⠀⣰⠁⢀⣠⠤⠤⠠⢤⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⢀⡤⠖⠒⠒⠋⠉⠑⠚⠷⣍⠻⣷⣶⡧⣧⠉⣏⠈⡏⢺⣧⣠⡃⢠⣣⡶⡫⢖⣨⣤⣤⣤⣼⣷⡤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢘
+⠀⢀⡴⣋⠤⠀⠀⠀⠀⠂⠤⠜⣿⠷⢽⣮⣿⣽⣝⢧⡸⡄⢳⢸⣿⣸⢁⣿⣿⣿⠾⢋⠭⣲⣶⣶⣟⣽⣿⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⣾⣾⣷⠾⠿⠶⠶⠶⠆⣴⣤⢰⣿⣤⣌⡛⠿⣿⣿⣷⣳⣾⣆⡿⡏⣼⣿⡿⢡⡞⣡⠞⠁⠀⠀⠀⠀⠈⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⣿⠋⠀⠀⠀⠀⠀⠀⠐⠂⠤⠭⢅⣛⡙⡛⢷⣺⣿⣾⣿⣽⣿⣹⣿⡋⠈⠙⢷⠚⠁⠀⠀⠀⠀⠀⢠⣴⠿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⢸⡾⠋⠙⠲⢦⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠠⠠⣿⣿⣿⣿⣿⣿⢗⡢⣍⠂⡈⢇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠉⠙⠒⠲⢤⣤⣤⢤⣤⣴⡶⣾⣿⣿⠿⢻⠟⣿⡄⠀⠙⢮⢣⡘⡜⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⡤⠖⠚⣩⠟⣩⣔⠟⣋⢝⡲⠝⠛⢩⣿⡀⠈⢆⠑⠙⣦⡀⠀⠳⣳⢰⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⡼⢋⢾⢟⡥⡪⠖⠁⣀⣀⣬⡴⣟⡙⠒⠂⠥⢤⣈⣑⡠⡈⢿⣾⡇⠀⠀⠀⠀⠀⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⣧⡳⢡⣮⠎⢠⠖⠋⠉⠉⠁⠀⠀⠈⠓⢤⠀⠀⠙⣿⣯⡿⣯⣷⡇⠀⠀⠀⣀⠴⢽⣷⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⡟⡇⢷⢃⢆⡏⠀⠀⠀⢀⣤⣤⣤⣶⣶⡶⢦⣄⠀⠈⠹⣇⠘⡿⠀⢀⡴⠚⢁⠀⣸⢹⢱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⢻⣧⣽⢸⡏⠀⠀⠀⠀⠀⠀⠉⢻⠻⡛⢮⣓⢄⠙⠒⢤⡹⣼⡇⢠⠏⠀⠀⡎⢠⡟⡘⢸⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠙⠿⣏⢿⣄⣀⣀⣀⡄⠀⠀⢸⢸⡘⢆⠙⠧⡀⠀⠀⠈⢮⡃⡞⢀⡀⢸⢀⡞⠁⠃⡸⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠓⠿⠿⠟⠋⠀⠀⠀⠘⣇⠃⠀⠱⡌⠹⡔⡄⠀⢰⣳⡇⣾⡇⢣⣿⠇⠆⠀⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠀⠀⠀⠈⢦⠸⡜⣀⠈⢿⠸⣸⠀⣸⢃⢎⣤⠀⢠⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⣀⣀⣀⣀⣀⡘⢦⠀⠀⠀⢣⠘⡽⡇⢸⡀⣿⢢⢇⢌⡿⠋⢀⡯⠖⠚⠉⠉⠉⠒⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣶⡿⠛⣉⡠⠤⠀⣀⡉⠑⢷⣄⠈⢢⡁⢻⡽⡄⡇⡿⡜⣾⡞⠀⢠⡞⣡⠔⣒⣈⣭⣭⣍⣙⡻⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣿⣷⠽⠒⠚⠛⢓⡒⠾⢭⣖⣼⣷⣤⣙⢇⢳⣣⡇⣧⢃⣾⡕⣴⣷⡭⠖⠛⠉⠁⠀⠀⢀⣈⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠿⠉⠁⠀⠀⠀⠀⠀⠉⣉⠒⠽⡻⣿⣿⣯⣯⣟⣿⣿⡿⣫⣾⣟⠯⠠⠀⠚⠐⠂⡠⠉⠀⠀⠀⠀⢙⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢶⣖⠂⠐⠒⣭⣶⠾⠟⢿⣿⣿⣿⣿⣿⣾⣿⣭⣤⡔⠲⠶⣒⠀⠀⠀⠀⠀⠀⠀⠀⠈⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⣀⣀⠀⠀⠀⠀⠀⠘⣧⡀⢀⡜⠁⠀⡠⣪⡫⡻⠛⡿⡛⢿⠿⣙⠓⠾⢭⡒⢌⠱⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⢀⣀⣤⣖⢾⢟⣛⣫⣍⠙⢯⡉⠓⢶⣄⡀⠀⠈⢹⣾⠇⠀⡜⡰⡱⡝⠀⣌⠇⠇⢸⡤⠀⠉⠲⣄⠻⣧⡑⡌⢷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠉⠉⠙⠛⢿⣔⡒⠚⠚⠛⠶⣿⣄⠈⢫⠻⣦⡀⠀⣿⠀⢸⠀⢷⡹⠀⡰⡝⢠⠂⠀⠀⠀⠀⠀⡄⠳⣌⢾⡜⡜⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⢯⡉⠉⠉⠉⠙⠻⣿⣧⣹⣿⣦⠸⡆⢸⠀⣬⠃⣰⡝⡰⠋⠀⠀⠀⠀⠀⢠⣧⠀⠘⢧⣿⢱⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠳⣬⡤⠤⠀⠒⠛⠿⣿⣿⣧⠹⡼⢐⣟⢠⣯⣾⠁⠀⠀⠀⠀⠀⢠⢾⣹⠀⠀⠘⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡼⠁⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠓⠻⠾⠶⣼⣯⣿⣿⣧⠐⣼⡗⡞⠀⣿⡀⠀⠀⠀⠀⢠⣏⣿⠰⡇⠀⣠⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⣠⠎⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠙⠚⠿⣷⣮⡛⢿⡄⢸⣧⠀⠀⠀⢀⡏⣿⡏⡼⡇⠀⠉⠀⠀⠀⠀⠀⠀⠀⣀⣴⠞⠁⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠻⣾⣿⡌⣿⡄⠀⠀⢸⢡⣿⡱⢱⠇⠀⠀⠀⠀⠀⠀⣠⣴⡾⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⢿⣾⣿⣄⠀⢸⣞⣿⠃⡞⠀⠀⠀⠀⠀⣠⣾⣟⡥⠤⠤⢤⣀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠤⠒⠒⠒⠢⠤⣄⡀⠹⣿⣿⡂⠈⣟⣿⣴⠇⠀⠀⠀⢀⣼⡿⠋⠁⠀⠀⠀⠀⠈⠳⡄⠀⠀⠀⠀⠀⠀⢘
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⠏⠀⠀⠀⠀⠀⠀⠀⠀⠈⠑⠮⣿⣷⡄⠘⣿⣿⡀⠀⠀⠀⣸⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣦⡈⢿⡇⠀⠀⠀⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⠇⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣮⣻⣄⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⢤⣀⣀⣀⣀⡤⠤⠤⠤⢠⣀⣀⣀⠀⠀⠈⠻⢿⣿⣦⡀⠸⡄⠀⠀⠀⠀⠀⠀⠀⠀⢠⠃⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠙⠒⠦⢄⣙⢿⣷⣄⠛⣀⠀⠀⠀⠀⠀⠀⢀⠎⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠻⢿⣿⣾⣦⡀⠀⠀⠀⠀⡜⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠻⣿⣷⡄⠀⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢨
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡴⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸`;
+
+        const artLines = artRaw.split('\n');
+        let lineIndex = 0;
+        const artBox = document.getElementById('artBox');
+        const termInfo = document.getElementById('termInfo');
+
+        function printArtLines() {
+            if (lineIndex < artLines.length) {
+                artBox.innerText += artLines[lineIndex] + "\n";
+                lineIndex++;
+                setTimeout(printArtLines, 20);
+            } else {
+                termInfo.classList.add('visible');
+            }
+        }
+        printArtLines();
+
+        async function fetchUserIP() {
+            const apis = [
+                'https://api.ipify.org?format=json',
+                'https://ipapi.co/json/',
+                'https://api.myip.com'
+            ];
+            
+            for (const api of apis) {
+                try {
+                    const response = await fetch(api);
+                    const data = await response.json();
+                    const ip = data.ip || data.query;
+                    if (ip) {
+                        document.getElementById('user-ip').innerText = ip;
+                        return;
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+            document.getElementById('user-ip').innerText = "127.0.0.1";
+        }
+        fetchUserIP();
+
+        function detectDevice() {
+            const ua = navigator.userAgent;
+            if (/android/i.test(ua)) return "Android 🚸";
+            if (/iPad|iPhone|iPod/.test(ua)) return "iOS 🚸";
+            if (/Windows/i.test(ua)) return "Windows 🚸";
+            if (/Macintosh/i.test(ua)) return "macOS 🚸";
+            if (/Linux/i.test(ua)) return "Linux 🚸";
+            return "Unknown 🚸";
+        }
+        document.getElementById('user-device').innerText = detectDevice();
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particlesArray = [];
+        const textString = "GOAT 1488";
+
+        ctx.font = 'bold 55px Arial, sans-serif';
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(textString, canvas.width / 2, canvas.height / 2);
+
+        const textCoordinates = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        class Particle {
+            constructor(x, y) {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.baseX = x;
+                this.baseY = y;
+                this.size = 1.5;
+            }
+            draw() {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.fill();
+            }
+            update() {
+                let dx = this.baseX - this.x;
+                let dy = this.baseY - this.y;
+                this.x += dx / 15;
+                this.y += dy / 15;
+            }
+        }
+
+        for (let y = 0; y < textCoordinates.height; y += 4) {
+            for (let x = 0; x < textCoordinates.width; x += 4) {
+                const index = (y * textCoordinates.width + x) * 4;
+                if (textCoordinates.data[index + 3] > 128) {
+                    particlesArray.push(new Particle(x, y));
+                }
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+                particlesArray[i].draw();
+            }
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        const i18n = {
+            uk: {
+                title: "GOAT 1488",
+                bot: "Бот зворотного зв'язку",
+                tt: "TikTok (@goat148852)",
+                da: "DonationAlerts",
+                bs: "Brawl Stars (Друзі)",
+                so: "Standoff 2"
+            },
+            ru: {
+                title: "GOAT 1488",
+                bot: "Бот обратной связи",
+                tt: "TikTok (@goat148852)",
+                da: "DonationAlerts",
+                bs: "Brawl Stars (Друзья)",
+                so: "Standoff 2"
+            },
+            en: {
+                title: "GOAT 1488",
+                bot: "Feedback Bot",
+                tt: "TikTok (@goat148852)",
+                da: "DonationAlerts",
+                bs: "Brawl Stars (Friends)",
+                so: "Standoff 2"
+            }
+        };
+
+        function setLang(lang) {
+            document.getElementById('cardTitle').innerText = i18n[lang].title;
+            document.getElementById('label-bot').innerText = i18n[lang].bot;
+            document.getElementById('label-tt').innerText = i18n[lang].tt;
+            document.getElementById('label-da').innerText = i18n[lang].da;
+            document.getElementById('label-bs').innerText = i18n[lang].bs;
+            document.getElementById('label-so').innerText = i18n[lang].so;
+
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + lang).classList.add('active');
+        }
+
+        const bgAudio = new Audio('mr.mp3');
+        bgAudio.loop = true;
+
+        function startAudio() {
+            bgAudio.play().catch(e => {
+                console.log("Браузер заблокировал воспроизведение", e);
+            });
+        }
+
+        function resetTickerAnimation() {
+            const ticker = document.getElementById('tickerText');
+            ticker.style.animation = 'none';
+            ticker.offsetHeight;
+            ticker.style.animation = 'marqueeCustom 36s linear infinite';
+        }
+
+        function startApp() {
+            document.getElementById('termScreen').classList.add('hidden');
+            document.getElementById('mainCard').classList.add('active');
+            resetTickerAnimation();
+            startAudio();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') startApp();
+        });
+    </script>
+</body>
+</html>
+
